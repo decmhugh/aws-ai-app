@@ -1,37 +1,40 @@
 import { useState } from 'react'
-import ImageUploader from './components/ImageUploader.jsx'
+import TextGenerator from './components/TextGenerator.jsx'
 import './App.css'
 
 function App() {
-  const [generatedImage, setGeneratedImage] = useState(null)
+  const [generatedText, setGeneratedText] = useState('')
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>🎨 AWS AI Image Generator</h1>
-        <p>Upload an image and let Amazon Bedrock Titan create a variation</p>
+        <h1>🤖 AWS AI Generator</h1>
+        <p>Enter a prompt or upload an image; the model will produce text or a variation.</p>
       </header>
 
       <main className="app-main">
-        <ImageUploader onImageGenerated={setGeneratedImage} />
+        <TextGenerator onTextGenerated={setGeneratedText} />
 
-        {generatedImage && (
+        {generatedText && (
           <section className="result-section">
-            <h2>Generated Image</h2>
-            <div className="result-image-wrapper">
-              <img
-                src={`data:image/png;base64,${generatedImage}`}
-                alt="AI-generated result"
-                className="result-image"
-              />
-            </div>
-            <a
-              href={`data:image/png;base64,${generatedImage}`}
-              download="generated-image.png"
-              className="download-btn"
-            >
-              ⬇ Download Image
-            </a>
+            <h2>Output</h2>
+            {(generatedText.startsWith('data:image') || generatedText.startsWith('http') || /^[A-Za-z0-9+/]+=*$/.test(generatedText)) ? (
+              <div className="result-image-wrapper">
+                <img
+                  src={
+                    generatedText.startsWith('http')
+                      ? generatedText
+                      : generatedText.startsWith('data:image')
+                      ? generatedText
+                      : `data:image/png;base64,${generatedText}`
+                  }
+                  alt="Generated result"
+                  className="result-image"
+                />
+              </div>
+            ) : (
+              <pre className="result-text">{generatedText}</pre>
+            )}
           </section>
         )}
       </main>

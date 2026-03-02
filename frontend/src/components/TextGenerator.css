@@ -134,6 +134,51 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Text generator additions ────────────────────── */
+.mask-prompt-input {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  margin-top: 0.5rem;
+}
+.mask-prompt-input:focus {
+  border-color: #0ea5e9;
+}
+
+.prompt-textarea {
+  width: 100%;
+  min-height: 120px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  resize: vertical;
+}
+
+.prompt-textarea:focus {
+  border-color: #0ea5e9;
+}
+
+.result-text {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 1rem;
+  white-space: pre-wrap;
+  color: #e2e8f0;
+  font-family: monospace;
+}
+
 /* ── Status ─────────────────────────────────────── */
 .status {
   font-size: 0.9rem;

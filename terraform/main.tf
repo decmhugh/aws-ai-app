@@ -17,12 +17,14 @@ provider "aws" {
   region = var.aws_region
 }
 
+
 # ──────────────────────────────────────────────────────────────
 # S3 Bucket for image uploads
 # ──────────────────────────────────────────────────────────────
 resource "aws_s3_bucket" "uploads" {
   bucket = var.bucket_name
 }
+
 
 resource "aws_s3_bucket_cors_configuration" "uploads" {
   bucket = aws_s3_bucket.uploads.id
@@ -96,7 +98,9 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Resource = [
           "arn:aws:bedrock:*::foundation-model/amazon.titan-image-generator-v1",
-          "arn:aws:bedrock:*:*:inference-profile/us.amazon.titan-image-generator-v1:0"
+          "arn:aws:bedrock:*::foundation-model/amazon.titan-image-generator-v2:0",
+          "arn:aws:bedrock:*:*:inference-profile/us.amazon.titan-image-generator-v1:0",
+          "arn:aws:bedrock:*:*:inference-profile/*"
         ]
       }
     ]
@@ -125,7 +129,7 @@ resource "aws_lambda_function" "image_generator" {
   environment {
     variables = {
       BUCKET_NAME             = aws_s3_bucket.uploads.bucket
-      MODEL_ALIAS             = var.bedrock_model_alias
+      MODEL_ALIAS             = var.bedrock_model_alias != "" ? var.bedrock_model_alias : "${var.aws_region}.amazon.titan-image-generator-v1:0"
       PRESIGN_EXPIRY_SECONDS  = "300"
     }
   }
@@ -167,6 +171,19 @@ resource "aws_apigatewayv2_route" "presign" {
 resource "aws_apigatewayv2_route" "generate" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "POST /generate"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "fetch" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /fetch"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+# catch-all route for static site and other GETs
+resource "aws_apigatewayv2_route" "catchall" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "ANY /{proxy+}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

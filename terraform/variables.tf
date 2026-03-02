@@ -17,9 +17,9 @@ variable "bucket_name" {
 }
 
 variable "bedrock_model_alias" {
-  description = "Amazon Bedrock Titan Image Generator model alias (cross-region inference profile)"
+  description = "Amazon Bedrock Titan Image Generator model alias (override; if empty the region-specific default will be used)"
   type        = string
-  default     = "us.amazon.titan-image-generator-v1:0"
+  default     = ""
 }
 
 variable "cors_allowed_origins" {
@@ -27,3 +27,4 @@ variable "cors_allowed_origins" {
   type        = list(string)
   default     = ["*"]
 }
+
