@@ -117,6 +117,7 @@ def handle_generate(event):
     body = json.loads(event.get("body") or "{}")
     key = body.get("key")
     prompt = body.get("prompt", "")
+    edit_mode = body.get("editMode", "")
 
     # if a key was provided we perform the original image variation/inpainting path
     if key:
@@ -129,48 +130,87 @@ def handle_generate(event):
         image_bytes = s3_response["Body"].read()
         image_base64 = base64.b64encode(image_bytes).decode("utf-8")
 
-        # build inpainting parameters according to the Titan example helper
-        # if the caller supplied a mask prompt or mask image we will run an
-        # explicit INPAINTING task; otherwise we fall back to an image
-        # variation, which does not require a mask and accepts a simple prompt.
+        # choose edit task type for keyed-image requests
         config = {
             "numberOfImages": body.get("numberOfImages", 1),
             "width": body.get("width", 512),
             "height": body.get("height", 512),
             "cfgScale": body.get("cfgScale", 8.0),
         }
-        if "seed" in body:
-            config["seed"] = body["seed"]
+        config["seed"] = 12345  # fixed seed for deterministic output; remove or randomize for more variety
 
-        if "maskPrompt" in body or "maskImage" in body:
-            inpaint_params = {
+        # Check for outpainting mode
+        if edit_mode == "outpaint":
+            # Outpainting: extend the canvas and generate new content around edges
+            if not prompt:
+                prompt = "Extend the image naturally with matching style and composition"
+
+            padding = body.get("padding", 256)
+            
+            outpaint_params = {
                 "image": image_base64,
                 "text": prompt,
                 "negativeText": body.get(
                     "negativeText",
-                    "different person, different face, changed facial structure, deformed, extra limbs, blurry, low quality",
+                    "low quality, distorted, artifacts, mismatched style",
                 ),
+                "outPaintingMode": "DEFAULT",
             }
-            if "maskPrompt" in body:
-                inpaint_params["maskPrompt"] = body["maskPrompt"]
-            if "maskImage" in body:
-                inpaint_params["maskImage"] = body["maskImage"]
 
             bedrock_request = {
-                "taskType": "INPAINTING",
-                "inPaintingParams": inpaint_params,
+                "taskType": "OUTPAINTING",
+                "outPaintingParams": outpaint_params,
                 "imageGenerationConfig": config,
             }
         else:
-            # no mask: perform a simple image variation with optional prompt
-            bedrock_request = {
-                "taskType": "IMAGE_VARIATION",
-                "image": image_base64,
-                "imageGenerationConfig": config,
-            }
-            if prompt:
-                bedrock_request["text"] = prompt
+            # Original inpainting/variation path
+            prompt_lc = (prompt or "").lower()
+            looks_like_expression_edit = any(
+                word in prompt_lc for word in ["smile", "grin", "expression", "teeth", "mouth"]
+            )
 
+            use_inpaint = (
+                "maskPrompt" in body
+                or "maskImage" in body
+                or edit_mode == "inpaint"
+                or looks_like_expression_edit
+            )
+
+            if use_inpaint:
+                if not prompt:
+                    prompt = (
+                        "Add a natural friendly smile. Keep the SAME person and identity. "
+                        "Do not change facial structure, eyes, nose, hair, or skin tone. "
+                        "Only change the mouth and subtle cheek expression."
+                    )
+
+                inpaint_params = {
+                    "image": image_base64,
+                    "text": prompt,
+                    "negativeText": body.get(
+                        "negativeText",
+                        "different person, different face, changed facial structure, changed jawline, changed nose, changed eyes, different hairstyle, deformed, artifacts, blurry",
+                    ),
+                    "maskPrompt": body.get("maskPrompt", "mouth, lips, teeth"),
+                }
+                if "maskImage" in body:
+                    inpaint_params.pop("maskPrompt", None)
+                    inpaint_params["maskImage"] = body["maskImage"]
+
+                bedrock_request = {
+                    "taskType": "INPAINTING",
+                    "inPaintingParams": inpaint_params,
+                    "imageGenerationConfig": config,
+                }
+            else:
+                # keep variation only for true restyle-style requests
+                bedrock_request = {
+                    "taskType": "IMAGE_VARIATION",
+                    "image": image_base64,
+                    "imageGenerationConfig": config,
+                }
+                if prompt:
+                    bedrock_request["text"] = prompt
         try:
             bedrock_response = bedrock_client.invoke_model(
                 modelId=MODEL_ID,
@@ -188,6 +228,10 @@ def handle_generate(event):
                 ip = dict(safe_request["inPaintingParams"])
                 ip["image"] = "<omitted>"
                 safe_request["inPaintingParams"] = ip
+            if "outPaintingParams" in safe_request:
+                op = dict(safe_request["outPaintingParams"])
+                op["image"] = "<omitted>"
+                safe_request["outPaintingParams"] = op
 
             # content filter blocks – user prompt triggered Bedrock safety
             if "blocked by our content filters" in details.lower():

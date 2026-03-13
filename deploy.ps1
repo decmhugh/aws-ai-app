@@ -13,7 +13,7 @@
     passed to Terraform as the "bucket_name" variable.
 
 .EXAMPLE
-    .\deploy.ps1 -BucketName "my-unique-bucket-name"
+    .\deploy.ps1 -BucketName "dmh-app-prod1-bucket"
 
 .NOTES
     - Requires Terraform >= 1.5, Node >= 18, and the AWS CLI to be configured

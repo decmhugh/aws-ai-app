@@ -1,19 +1,51 @@
 import { useState } from 'react'
 import TextGenerator from './components/TextGenerator.jsx'
+import OutpaintGenerator from './components/OutpaintGenerator.jsx'
 import './App.css'
 
 function App() {
   const [generatedText, setGeneratedText] = useState('')
+  const [currentPage, setCurrentPage] = useState('text-gen')
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>🤖 AWS AI Generator</h1>
-        <p>Enter a prompt or upload an image; the model will produce text or a variation.</p>
+        <nav className="app-nav">
+          <button
+            className={`nav-btn ${currentPage === 'text-gen' ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentPage('text-gen')
+              setGeneratedText('')
+            }}
+          >
+            ✨ Variations & Inpaint
+          </button>
+          <button
+            className={`nav-btn ${currentPage === 'outpaint' ? 'active' : ''}`}
+            onClick={() => {
+              setCurrentPage('outpaint')
+              setGeneratedText('')
+            }}
+          >
+            🎨 Outpaint
+          </button>
+        </nav>
       </header>
 
       <main className="app-main">
-        <TextGenerator onTextGenerated={setGeneratedText} />
+        {currentPage === 'text-gen' && (
+          <>
+            <p className="page-description">Enter a prompt or upload an image; the model will produce text or a variation.</p>
+            <TextGenerator onTextGenerated={setGeneratedText} />
+          </>
+        )}
+        {currentPage === 'outpaint' && (
+          <>
+            <p className="page-description">Upload an image to expand the canvas and generate new content around the edges.</p>
+            <OutpaintGenerator onTextGenerated={setGeneratedText} />
+          </>
+        )}
 
         {generatedText && (
           <section className="result-section">
